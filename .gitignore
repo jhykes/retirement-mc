@@ -1,3 +1,7 @@
 */*.pdf
 *.pdf
 *.csv
+cdc_life_tables/data
+cdc_life_tables/data/*
+*/*.pyc
+*.pyc
