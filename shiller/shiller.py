@@ -12,7 +12,10 @@ import pandas as pd
 import numpy as np
 
 
-csv_file = 'shiller.csv'
+mod_dir = os.path.dirname(__file__)
+csv_file = os.path.join(mod_dir, 'shiller.csv')
+
+
 xls_url = 'http://www.econ.yale.edu/~shiller/data/chapt26.xls'
 
 if not os.path.exists(csv_file):
@@ -23,14 +26,11 @@ if not os.path.exists(csv_file):
     df = xls.parse('Data', skiprows=[0,1,3,4,5,6,7],
                    skip_footer=5, index_col=0)
 
-    #df.rename(columns={'Unnamed: 0': 'Year'}, inplace=True)
-
     df.to_csv(csv_file)
 
 else:
     df = pd.read_csv(csv_file, index_col=0)
 
-# dates = df['Year']
 cpi   = df['CPI']
 gs10  = df['RLONG'] / 100. # convert from percent to fraction
 
