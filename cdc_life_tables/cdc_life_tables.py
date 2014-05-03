@@ -88,18 +88,23 @@ for line in states_table.split('\n'):
 
 
 group_labels = {
-          'total' : 'Total', 'male' : 'Male', 'female' : 'Female',
-          'white' : 'White', 'wm' : 'White male' , 'wf' : 'White female',
-          'black' : 'Black', 'bm' : 'Black male', 'bf' : 'Black female', 
+          'total' : 'total', 'male' : 'male', 'female' : 'female',
+          'white' : 'white', 'wm' : 'white male' , 'wf' : 'white female',
+          'black' : 'black', 'bm' : 'black male', 'bf' : 'black female', 
 }
+groups_long2short = dict( [(group_labels[k],k) for k in group_labels] )
 
 groups = ['total', 'male', 'female',
           'white', 'wm', 'wf',
           'black', 'bm', 'bf', ]
 
-
 cdc_url = 'http://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/60_09/'
 lt_dir = 'data/'
+
+try:
+    lt_dir = os.path.join(os.path.dirname(__file__), lt_dir)
+except NameError:
+    pass
 
 def remove_digits(s):
     return ''.join( [x for x in s if x not in '0123456789'] )
@@ -134,7 +139,9 @@ def life_table(state_abbrev, demographic_group):
       * state_abbrev - 2 letter string, postal code of US state or DC
       * demographic_group - One of ['total', 'male', 'female', 
                                     'white', 'wm', 'wf',
-                                    'black', 'bm', 'bf', ]
+                                    'black', 'bm', 'bf', 
+                                    'white male', 'white female',
+                                    'black male', 'black female', ]
 
     Returns:
       * pandas.Series with q values for years 0 thru 109
@@ -142,7 +149,6 @@ def life_table(state_abbrev, demographic_group):
     """
     # Get inputs in correct case
     state_abbrev = state_abbrev.upper()
-    demographic_group = demographic_group.lower()
 
     try:
         state = abbrev2name[state_abbrev]
@@ -150,6 +156,15 @@ def life_table(state_abbrev, demographic_group):
         raise ValueError('"{}" not a state abbreviation.'.format(state_abbrev))
 
     state = state.lower().replace(' ', '_')
+
+
+    try:
+        demographic_group = demographic_group.lower()
+        if len(demographic_group) > 2:
+           demographic_group = groups_long2short[demographic_group]
+    except KeyError:
+        raise ValueError('"{}" not a valid group.'.format(demographic_group))
+
     
     s = '{}{}_{}.csv'.format(lt_dir, state, demographic_group)
 
