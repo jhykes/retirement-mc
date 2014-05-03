@@ -5,3 +5,5 @@ cdc_life_tables/data
 cdc_life_tables/data/*
 */*.pyc
 *.pyc
+figs
+figs/*

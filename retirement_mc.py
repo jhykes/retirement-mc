@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 """
 
+Use Monte Carlo to estimate the probability of outliving
+one's savings in retirement.
+
+Uses historical economic data to estimate investment return,
+and CDC life tables to estimate chance of death.
 
 
 
@@ -126,7 +131,6 @@ def run_histories(starting_assets,
     if plotting:
 
         rcParams['figure.figsize'] = [7.0, 3.5]
-        #rcParams['figure.subplot.left'] = 0.2
 
         # Plot of asset-over-lifetime histories
         plt.figure()
@@ -147,9 +151,7 @@ def run_histories(starting_assets,
         plt.xlabel('Age')
         plt.ylabel('Remaining assets (million USD)')
 
-        #plt.ylim(ymin=-fin, ymax=2*starting_assets)
-
-        plt.savefig('figs/histories.pdf')
+        # plt.savefig('figs/histories.pdf')
 
 
         # Plot of age of death
@@ -166,7 +168,7 @@ def run_histories(starting_assets,
         plt.xlabel('Age of Death')
         plt.ylabel('Probability')
 
-        plt.savefig('figs/final-age.pdf')
+        # plt.savefig('figs/final-age.pdf')
 
     else:
         final_assets = []
@@ -230,7 +232,7 @@ def cascade_plot(yearly_expenses,
                                   n_mc=n_mc)
             run_out_of_money.append(p)
 
-            # Don't keep going for <1%
+            # Don't keep going for probability <1%
             if p < 1: break
 
         run_out_of_money = np.array(run_out_of_money)
@@ -252,7 +254,7 @@ def cascade_plot(yearly_expenses,
     plt.legend(fontsize='x-small')
     plt.ylim(ymin=0, ymax=100)
 
-    plt.savefig('figs/{}.pdf'.format(str_id))
+    # plt.savefig('figs/{}.pdf'.format(str_id))
 
     return fig
 
@@ -274,11 +276,11 @@ if __name__ == '__main__':
 
     # Run one simulation for a given starting assets and stock fraction
     run_histories(starting_assets, yearly_expenses,
-                      stock_fraction,
-                      starting_age,
-                      state_abbrev,
-                      demographic_group,
-                      n_mc=1000, plotting=True, verbose=True)
+                  stock_fraction,
+                  starting_age,
+                  state_abbrev,
+                  demographic_group,
+                  n_mc=1000, plotting=True, verbose=True)
 
     # Run many simulations over a range of starting assets and stock fractions
     cascade_plot(yearly_expenses,
