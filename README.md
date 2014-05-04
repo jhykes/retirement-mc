@@ -29,7 +29,8 @@ See LICENSE file.
 
 ## Companion website
 
-For those not proficient in Python, I have also coded much of the
-same in Javascript, which can be accessed at the following website:
+For those not proficient in Python or programming in general, I 
+have also coded much of the same in Javascript, 
+which can be accessed through an HTML form at the following website:
 
 www.willioutlivemysavings.net
