@@ -12,6 +12,7 @@ and CDC life tables to estimate chance of death.
 """
 
 import numpy as np
+from scipy.optimize import brentq
 import pandas as pd
 import uncertainties as unc
 import uncertainties.unumpy as unp
@@ -27,15 +28,15 @@ from cdc_life_tables import life_table
 import shiller
 
 # Historical financial data
-inflation = shiller.inflation[1:-1]
-stock_returns = shiller.stock_returns[1:-1]
-interest_rates = shiller.interest_rates[1:-1]
+inflation = shiller.inflation.iloc[1:-1]
+stock_returns = shiller.stock_returns.iloc[1:-1]
+interest_rates = shiller.interest_rates.iloc[1:-1]
 
 rand = np.random.random_sample
 
 
 def run_histories(starting_assets, 
-                  yearly_expenses,
+                  yearly_expense,
                   stock_fraction,
                   starting_age,
                   state_abbrev,
@@ -43,7 +44,7 @@ def run_histories(starting_assets,
                   n_mc=1000, plotting=False, verbose=False):
     """
     Run a Monte Carlo simulation for a person starting with the given
-    amount of assets in savings. The yearly_expenses are withdrawn 
+    amount of assets in savings. The yearly_expense are withdrawn 
     once a year, while the assets grow according to historical
     US stock and bond returns, dividing between the two according to
     stock_fraction. The chance of dying each year is taken from 
@@ -57,7 +58,7 @@ def run_histories(starting_assets,
     Inputs:
       
        * starting_assets : amount of initial savings to invest for income
-       * yearly_expenses : amount of money needed per year. This value
+       * yearly_expense  : amount of money needed per year. This value
                             will be adjusted for inflation.
        * stock_fraction : fraction (between 0.0 and 1.0) of the money invested
                             in stocks. The remainder is invested in bonds.
@@ -84,7 +85,7 @@ def run_histories(starting_assets,
 
         age = starting_age
         current_assets = starting_assets
-        expenses_per_year = yearly_expenses
+        expenses_per_year = yearly_expense
 
         assets = [current_assets]
 
@@ -105,13 +106,13 @@ def run_histories(starting_assets,
             i = int(i)
 
             # Adjust expenses for inflation.
-            expenses_per_year *= 1.0+inflation[i]
+            expenses_per_year *= 1.0+inflation.iloc[i]
 
             # Adding stock investment increase
-            stock_gains = stock_returns[i] * (current_assets*stock_fraction)
+            stock_gains = stock_returns.iloc[i] * (current_assets*stock_fraction)
 
             # Adding bond investment increase
-            bond_gains = interest_rates[i] * (current_assets*(1-stock_fraction))
+            bond_gains = interest_rates.iloc[i] * (current_assets*(1-stock_fraction))
 
             current_assets += stock_gains
             current_assets += bond_gains
@@ -187,7 +188,68 @@ def run_histories(starting_assets,
     return run_out_of_money
 
 
-def cascade_plot(yearly_expenses,
+def how_much_to_save(
+                     acceptable_risk=0.01,
+                     yearly_expense=40e3,
+                     stock_fraction=0.5,
+                     starting_age=65,
+                     state_abbrev='CA',
+                     demographic_group='total',
+                     n_mc=1000, plotting=False, verbose=False):
+    """
+    Computes f(x) = f_0, where f is the MC simulation of the retirement
+    process returning the probability of running out of money and
+    x is the size of the starting assets.
+
+    Inputs:
+      
+       * yearly_expense : amount of money needed per year. This value
+                            will be adjusted for inflation.
+       * stock_fraction : fraction (between 0.0 and 1.0) of the money invested
+                            in stocks. The remainder is invested in bonds.
+       * starting_age : the subject's age at which yearly withdraws will be made from 
+                            the investment
+       * state_abbrev : mailing abbreviation for the state in which the subject lives
+       * demographic_group : the subject's demographic group accepted by
+                               cdc_life_tables.life_table
+       * acceptable_risk : probability of running out of money
+       * n_mc : the number of Monte Carlo histories
+       * plotting : produce a plot showing the Monte Carlo histories
+       * verbose : produce verbose diagnostic messages
+
+    Output:
+
+       * starting_assets : amount of initial savings to invest for income
+
+    """
+
+    # Probabilities away from 0 and 1 have larger statistical noise
+    #  and so need more histories.
+    #if 0.3 < acceptable_risk < 0.7: 
+    #    n_mc = 1000
+    #elif 0.1 < acceptable_risk < 0.9: 
+    #    n_mc = 800
+    #else:
+    #    n_mc = 400
+    n_mc = 500
+
+    def f(x):
+        prob_outlive_savings = run_histories(x, yearly_expense, stock_fraction,
+                                             starting_age, state_abbrev,
+                                             demographic_group,
+                                             n_mc=n_mc, plotting=False, verbose=False)
+        return acceptable_risk - prob_outlive_savings.nominal_value
+
+    lo_bound = 3.0*yearly_expense
+    hi_bound = 200.0*yearly_expense
+    res = brentq(f, lo_bound, hi_bound, rtol=1e-2, full_output=True)
+
+    return res[0]
+
+
+
+
+def cascade_plot(yearly_expense,
                  stock_fraction,
                  starting_age,
                  state_abbrev,
@@ -197,7 +259,7 @@ def cascade_plot(yearly_expenses,
     """
     Inputs:
       
-       * yearly_expenses : amount of money needed per year. This value
+       * yearly_expense : amount of money needed per year. This value
                             will be adjusted for inflation.
        * stock_fraction : fraction (between 0.0 and 1.0) of the money invested
                             in stocks. The remainder is invested in bonds.
@@ -224,7 +286,7 @@ def cascade_plot(yearly_expenses,
         run_out_of_money = []
         for x in starting_assets:
             p = 100*run_histories(x, 
-                                  yearly_expenses,
+                                  yearly_expense,
                                   stock_fraction,
                                   starting_age,
                                   state_abbrev,
@@ -247,9 +309,9 @@ def cascade_plot(yearly_expenses,
     plt.ylabel('Prob. of running out of money (%)')
 
     str_id = '{}-{}-{}-{}'.format(demographic_group, state_abbrev, starting_age,
-                                                yearly_expenses)
+                                                yearly_expense)
     plt.title('{}-{}, starting at age {} with \${}/year expenses'.format(demographic_group, state_abbrev, starting_age,
-                                                yearly_expenses))
+                                                yearly_expense))
 
     plt.legend(fontsize='x-small')
     plt.ylim(ymin=0, ymax=100)
@@ -259,11 +321,97 @@ def cascade_plot(yearly_expenses,
     return fig
 
 
+def sensitivity_plots(
+                      state_abbrev='CA',
+                      demographic_group='total',
+                      yearly_expense=40e3,
+                      yearly_expenses=np.logspace(3.69897, 5, 10),
+                      starting_age=65,
+                      starting_ages=np.linspace(40, 85, 10),
+                      acceptable_risk=0.02,
+                      acceptable_risks=np.logspace(-3, -0.2, 7),
+                      stock_fraction=0.5,
+                      stock_fractions=np.linspace(0.0, 1.0, 11),
+                      n_mc=5000):
+    """
+    Inputs:
+      
+       * yearly_expense : amount of money needed per year. This value
+                            will be adjusted for inflation.
+       * stock_fraction : fraction (between 0.0 and 1.0) of the money invested
+                            in stocks. The remainder is invested in bonds.
+       * starting_age : the subject's age at which yearly withdraws will be made from 
+                            the investment
+       * state_abbrev : mailing abbreviation for the state in which the subject lives
+       * demographic_group : the subject's demographic group accepted by
+                               cdc_life_tables.life_table
+       * n_mc : the number of Monte Carlo histories
+       * plotting : produce a plot showing the Monte Carlo histories
+       * verbose : produce verbose diagnostic messages
+
+    Output:
+       * Matplotlib figure object
+
+    """
+
+    factors = { 
+                'stock_fraction'  : {'value' : stock_fraction,  'values' : stock_fractions },
+                'acceptable_risk' : {'value' : acceptable_risk, 'values' : acceptable_risks },
+                 'yearly_expense' : {'value' : yearly_expense,  'values' : yearly_expenses },
+                   'starting_age' : {'value' : starting_age,    'values' : starting_ages },
+              }
+
+    rcParams['figure.figsize'] = [9, 11]
+    fig, axs = plt.subplots(nrows=len(factors.keys()))
+
+
+    base_opts = {
+                  'stock_fraction'    : stock_fraction,
+                  'acceptable_risk'   : acceptable_risk,
+                  'yearly_expense'    : yearly_expense,
+                  'starting_age'      : starting_age,
+                  'state_abbrev'      : state_abbrev,
+                  'demographic_group' : demographic_group,
+                }
+
+    base_save = how_much_to_save(**base_opts)/1e6
+
+    for i, factor in enumerate(factors.keys()):
+
+        opts = base_opts.copy()
+
+        factor_res = []
+
+        for factor_value in factors[factor]['values']:
+
+            opts[factor] = factor_value
+
+            factor_res.append( how_much_to_save(**opts)/1e6 )
+
+
+        axs[i].plot(factors[factor]['values'], factor_res,
+                    marker='.', markersize=3.5,)
+
+        axs[i].plot(base_opts[factor], base_save,
+                    marker='+', markersize=5.5,)
+                 
+        axs[i].set_xlabel(factor)
+
+        #axs[i].legend(fontsize='x-small')
+        #plt.ylim(ymin=0, ymax=100)
+
+    axs[1].set_ylabel('Amount to save (million USD)')
+    fig.tight_layout()
+    fig.savefig('figs/{}.pdf'.format('sensitivity-plots'))
+
+    return fig
+
+
 
 if __name__ == '__main__':
     starting_age = 65.0
     state_abbrev = 'IA'
-    demographic_group = 'mf'
+    demographic_group = 'wf'
 
     # Expenses per year
     yearly_expenses = 50e3
@@ -282,9 +430,19 @@ if __name__ == '__main__':
                   demographic_group,
                   n_mc=1000, plotting=True, verbose=True)
 
+    a = how_much_to_save(0.1, yearly_expenses,
+                         stock_fraction,
+                         starting_age,
+                         state_abbrev,
+                         demographic_group)
+
+    a = sensitivity_plots()
+                     
+    """
     # Run many simulations over a range of starting assets and stock fractions
     cascade_plot(yearly_expenses,
                  stock_fraction,
                  starting_age,
                  state_abbrev,
                  demographic_group)
+    """
