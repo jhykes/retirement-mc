@@ -195,7 +195,7 @@ def how_much_to_save(
                      starting_age=65,
                      state_abbrev='CA',
                      demographic_group='total',
-                     n_mc=1000, plotting=False, verbose=False):
+                     n_mc=500, plotting=False, verbose=False):
     """
     Computes f(x) = f_0, where f is the MC simulation of the retirement
     process returning the probability of running out of money and
@@ -223,16 +223,6 @@ def how_much_to_save(
 
     """
 
-    # Probabilities away from 0 and 1 have larger statistical noise
-    #  and so need more histories.
-    #if 0.3 < acceptable_risk < 0.7: 
-    #    n_mc = 1000
-    #elif 0.1 < acceptable_risk < 0.9: 
-    #    n_mc = 800
-    #else:
-    #    n_mc = 400
-    n_mc = 500
-
     def f(x):
         prob_outlive_savings = run_histories(x, yearly_expense, stock_fraction,
                                              starting_age, state_abbrev,
@@ -240,9 +230,17 @@ def how_much_to_save(
                                              n_mc=n_mc, plotting=False, verbose=False)
         return acceptable_risk - prob_outlive_savings.nominal_value
 
-    lo_bound = 3.0*yearly_expense
-    hi_bound = 200.0*yearly_expense
-    res = brentq(f, lo_bound, hi_bound, rtol=1e-2, full_output=True)
+    lo_bound = 5.0*yearly_expense
+    hi_bound = 40.0*yearly_expense
+
+    while True:
+        try:
+            res = brentq(f, lo_bound, hi_bound, rtol=1e-2, full_output=True)
+            break
+        except ValueError:
+            n_mc *= 2
+            lo_bound /= 2
+            hi_bound *= 2
 
     return res[0]
 
@@ -269,8 +267,6 @@ def cascade_plot(yearly_expense,
        * demographic_group : the subject's demographic group accepted by
                                cdc_life_tables.life_table
        * n_mc : the number of Monte Carlo histories
-       * plotting : produce a plot showing the Monte Carlo histories
-       * verbose : produce verbose diagnostic messages
 
     Output:
        * Matplotlib figure object
@@ -362,7 +358,7 @@ def sensitivity_plots(
               }
 
     rcParams['figure.figsize'] = [9, 11]
-    fig, axs = plt.subplots(nrows=len(factors.keys()))
+    fig, axs = plt.subplots(nrows=len(factors.keys()), sharey=True)
 
 
     base_opts = {
@@ -390,19 +386,17 @@ def sensitivity_plots(
 
 
         axs[i].plot(factors[factor]['values'], factor_res,
-                    marker='.', markersize=3.5,)
+                    marker='.', markersize=3.5, ls='-', color='gray')
 
         axs[i].plot(base_opts[factor], base_save,
-                    marker='+', markersize=5.5,)
+                    marker='o', markersize=5.5, color='black')
                  
         axs[i].set_xlabel(factor)
 
-        #axs[i].legend(fontsize='x-small')
-        #plt.ylim(ymin=0, ymax=100)
-
     axs[1].set_ylabel('Amount to save (million USD)')
     fig.tight_layout()
-    fig.savefig('figs/{}.pdf'.format('sensitivity-plots'))
+
+    #fig.savefig('figs/{}.pdf'.format('sensitivity-plots'))
 
     return fig
 
@@ -414,7 +408,7 @@ if __name__ == '__main__':
     demographic_group = 'wf'
 
     # Expenses per year
-    yearly_expenses = 50e3
+    yearly_expense = 50e3
 
     # Assets
     starting_assets = 3e6
@@ -423,26 +417,38 @@ if __name__ == '__main__':
     stock_fraction = 0.5
 
     # Run one simulation for a given starting assets and stock fraction
-    run_histories(starting_assets, yearly_expenses,
+    run_histories(starting_assets, yearly_expense,
                   stock_fraction,
                   starting_age,
                   state_abbrev,
                   demographic_group,
-                  n_mc=1000, plotting=True, verbose=True)
+                  n_mc=5000, plotting=True, verbose=True)
 
-    a = how_much_to_save(0.1, yearly_expenses,
-                         stock_fraction,
-                         starting_age,
-                         state_abbrev,
-                         demographic_group)
+    # The highest probability of running out of money 
+    #  that you are comfortable with.
+    acceptable_risk = 0.01  # = 1%
 
-    a = sensitivity_plots()
+    savings_goal = how_much_to_save(acceptable_risk, 
+                                    yearly_expense,
+                                    stock_fraction,
+                                    starting_age,
+                                    state_abbrev,
+                                    demographic_group)
+
+    # Run many simulations over a range of input variables.
+    sens_fig = sensitivity_plots(acceptable_risk=acceptable_risk, 
+                                 yearly_expense=yearly_expense,
+                                 stock_fraction=stock_fraction,
+                                 starting_age=starting_age,
+                                 state_abbrev=state_abbrev,
+                                 demographic_group=demographic_group
+                                )
                      
-    """
+    '''
     # Run many simulations over a range of starting assets and stock fractions
-    cascade_plot(yearly_expenses,
+    cascade_plot(yearly_expense,
                  stock_fraction,
                  starting_age,
                  state_abbrev,
                  demographic_group)
-    """
+    '''
