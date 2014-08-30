@@ -272,6 +272,7 @@ def cascade_plot(yearly_expense,
        * Matplotlib figure object
 
     """
+    rcParams['figure.figsize'] = [9, 5]
     fig = plt.figure()
 
     starting_assets = np.linspace(1e5, 10e6, 100)
@@ -328,7 +329,8 @@ def sensitivity_plots(
                       acceptable_risks=np.logspace(-3, -0.2, 7),
                       stock_fraction=0.5,
                       stock_fractions=np.linspace(0.0, 1.0, 11),
-                      n_mc=5000):
+                      n_mc=5000,
+                      verbose=False):
     """
     Inputs:
       
@@ -395,6 +397,9 @@ def sensitivity_plots(
 
     axs[1].set_ylabel('Amount to save (million USD)')
     fig.tight_layout()
+
+    if verbose:
+        print ' You should save ${:.2f} million.'.format(base_save)
 
     #fig.savefig('figs/{}.pdf'.format('sensitivity-plots'))
 
