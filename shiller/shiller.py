@@ -16,10 +16,8 @@ mod_dir = os.path.dirname(__file__)
 csv_file = os.path.join(mod_dir, 'shiller.csv')
 
 
-xls_url = 'http://www.econ.yale.edu/~shiller/data/chapt26.xls'
-
 if not os.path.exists(csv_file):
-    xls_url = 'http://www.econ.yale.edu/~shiller/data/chapt26.xls'
+    xls_url = 'http://www.econ.yale.edu/~shiller/data/chapt26.xlsx'
     url = urllib2.urlopen(xls_url)
 
     xls = pd.ExcelFile(url)

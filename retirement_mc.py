@@ -146,7 +146,7 @@ def run_histories(starting_assets,
             final_assets.append(y[-1])
             final_ages.append(x[-1])
 
-        plt.plot(final_ages, final_assets, color='red', ls='.',
+        plt.plot(final_ages, final_assets, color='red', ls=':',
                  marker='.', markersize=1.5)
 
         plt.xlabel('Age')
