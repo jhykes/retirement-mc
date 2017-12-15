@@ -22,6 +22,7 @@ An IPython notebook with an introductory example can be viewed on
    * scipy
    * pandas
    * uncertainties
+   * xlrd
 
 ## License
 
