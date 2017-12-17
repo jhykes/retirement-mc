@@ -19,8 +19,10 @@ An IPython notebook with an introductory example can be viewed on
 
    * matplotlib
    * numpy
+   * scipy
    * pandas
    * uncertainties
+   * xlrd
 
 ## License
 
